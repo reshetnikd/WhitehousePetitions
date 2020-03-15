@@ -20,7 +20,26 @@ class ViewController: UITableViewController {
         navigationItem.rightBarButtonItem = UIBarButtonItem(image: UIImage(systemName: "info.circle"), style: .plain, target: self, action: #selector(showCredits))
         navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .search, target: self, action: #selector(filterPetitions))
         
-        performSelector(inBackground: #selector(fetchJSON), with: nil)
+        let urlString: String
+        
+        if navigationController?.tabBarItem.tag == 0 {
+            urlString = "https://api.whitehouse.gov/v1/petitions.json?limit=100"
+//            urlString = "https://www.hackingwithswift.com/samples/petitions-1.json"
+        } else {
+            urlString = "https://api.whitehouse.gov/v1/petitions.json?signatureCountFloor=10000&limit=100"
+//            urlString = "https://www.hackingwithswift.com/samples/petitions-2.json"
+        }
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            if let url = URL(string: urlString) {
+                if let data = try? Data(contentsOf: url) {
+                    self.parse(json: data)
+                    return
+                }
+            }
+
+            self.showError()
+        }
     }
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -58,19 +77,25 @@ class ViewController: UITableViewController {
         
         let filterRequest = UIAlertAction(title: "Search", style: .default) { [weak self, weak ac] _ in
             guard let request = ac?.textFields?[0].text else { return }
-            for petition in self!.petitions {
-                if petition.title.contains(request) || petition.body.contains(request) {
-                    self!.filterResults.append(petition)
+            DispatchQueue.global(qos: .background).async {
+                for petition in self!.petitions {
+                    if petition.title.contains(request) || petition.body.contains(request) {
+                        self!.filterResults.append(petition)
+                    }
                 }
-            }
-            if self!.filterResults.isEmpty {
-                let ac = UIAlertController(title: "No petitions was found", message: nil, preferredStyle: .alert)
-                ac.addAction(UIAlertAction(title: "OK", style: .default))
-                self?.present(ac, animated: true)
-                self?.isFilterActive = false
-            } else {
-                self?.isFilterActive = true
-                self?.tableView.reloadData()
+                if self!.filterResults.isEmpty {
+                    let ac = UIAlertController(title: "No petitions was found", message: nil, preferredStyle: .alert)
+                    ac.addAction(UIAlertAction(title: "OK", style: .default))
+                    DispatchQueue.main.async {
+                        self?.present(ac, animated: true)
+                    }
+                    self?.isFilterActive = false
+                } else {
+                    self?.isFilterActive = true
+                    DispatchQueue.main.async {
+                        self?.tableView.reloadData()
+                    }
+                }
             }
         }
         
@@ -78,31 +103,12 @@ class ViewController: UITableViewController {
         present(ac, animated: true)
     }
     
-    @objc func fetchJSON() {
-        let urlString: String
-        
-        if navigationController?.tabBarItem.tag == 0 {
-            urlString = "https://api.whitehouse.gov/v1/petitions.json?limit=100"
-            //            urlString = "https://www.hackingwithswift.com/samples/petitions-1.json"
-        } else {
-            urlString = "https://api.whitehouse.gov/v1/petitions.json?signatureCountFloor=10000&limit=100"
-            //            urlString = "https://www.hackingwithswift.com/samples/petitions-2.json"
-        }
-        
-        if let url = URL(string: urlString) {
-            if let data = try? Data(contentsOf: url) {
-                parse(json: data)
-                return
-            }
-        }
-        
-        performSelector(onMainThread: #selector(showError), with: nil, waitUntilDone: false)
-    }
-    
     @objc func showError() {
-        let ac = UIAlertController(title: "Loading error", message: "There was a problem loading the feed; please check your connection and try again.", preferredStyle: .alert)
-        ac.addAction(UIAlertAction(title: "OK", style: .default))
-        present(ac, animated: true)
+        DispatchQueue.main.async {
+            let ac = UIAlertController(title: "Loading error", message: "There was a problem loading the feed; please check your connection and try again.", preferredStyle: .alert)
+            ac.addAction(UIAlertAction(title: "OK", style: .default))
+            self.present(ac, animated: true)
+        }
     }
     
     func parse(json: Data) {
@@ -110,9 +116,9 @@ class ViewController: UITableViewController {
         
         if let jsonPetitions = try? decoder.decode(Petitions.self, from: json) {
             petitions = jsonPetitions.results
-            tableView.performSelector(onMainThread: #selector(UITableView.reloadData), with: nil, waitUntilDone: false)
-        } else {
-            performSelector(onMainThread: #selector(showError), with: nil, waitUntilDone: false)
+            DispatchQueue.main.async {
+                self.tableView.reloadData()
+            }
         }
     }
 
