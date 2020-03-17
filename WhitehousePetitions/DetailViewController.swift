@@ -29,7 +29,7 @@ class DetailViewController: UIViewController {
         <head>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
-        body { font-size: 150%; font-family: Geneva, Arial, Helvetica, sans-serif; margin-left: 15px;}
+        body { font-size: 150%; font-family: Geneva, Arial, Helvetica, sans-serif; margin-left: 15px; line-height: 1; text-indent: 25px;}
         </style>
         </head>
         <body>
