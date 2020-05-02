@@ -9,16 +9,29 @@
 import UIKit
 
 @available(iOS 13.0, *)
-class ViewController: UITableViewController {
+class ViewController: UITableViewController, UISearchResultsUpdating {
     var petitions = [Petition]()
     var filterResults = [Petition]()
-    var isFilterActive = false
+    var isFilterActive : Bool {
+        return searchController.isActive && !isSearchBarEmpty
+    }
+    var isSearchBarEmpty: Bool {
+        return searchController.searchBar.text?.isEmpty ?? true
+    }
+    let searchController = UISearchController(searchResultsController: nil)
 
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
         navigationItem.rightBarButtonItem = UIBarButtonItem(image: UIImage(systemName: "info.circle"), style: .plain, target: self, action: #selector(showCredits))
-        navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .search, target: self, action: #selector(filterPetitions))
+        title = "Petitions"
+        navigationController?.navigationBar.prefersLargeTitles = true
+        // Setting up UISearchController
+        searchController.searchResultsUpdater = self
+        searchController.obscuresBackgroundDuringPresentation = false
+        searchController.searchBar.placeholder = "Search Petitions"
+        navigationItem.searchController = searchController
+        definesPresentationContext = true
         
         let urlString: String
         
@@ -71,38 +84,6 @@ class ViewController: UITableViewController {
         present(ac, animated: true)
     }
     
-    @objc func filterPetitions() {
-        let ac = UIAlertController(title: "Search petitions", message: nil, preferredStyle: .alert)
-        ac.addTextField()
-        
-        let filterRequest = UIAlertAction(title: "Search", style: .default) { [weak self, weak ac] _ in
-            guard let request = ac?.textFields?[0].text else { return }
-            DispatchQueue.global(qos: .background).async {
-                for petition in self!.petitions {
-                    if petition.title.contains(request) || petition.body.contains(request) {
-                        self!.filterResults.append(petition)
-                    }
-                }
-                if self!.filterResults.isEmpty {
-                    let ac = UIAlertController(title: "No petitions was found", message: nil, preferredStyle: .alert)
-                    ac.addAction(UIAlertAction(title: "OK", style: .default))
-                    DispatchQueue.main.async {
-                        self?.present(ac, animated: true)
-                    }
-                    self?.isFilterActive = false
-                } else {
-                    self?.isFilterActive = true
-                    DispatchQueue.main.async {
-                        self?.tableView.reloadData()
-                    }
-                }
-            }
-        }
-        
-        ac.addAction(filterRequest)
-        present(ac, animated: true)
-    }
-    
     @objc func showError() {
         DispatchQueue.main.async {
             let ac = UIAlertController(title: "Loading error", message: "There was a problem loading the feed; please check your connection and try again.", preferredStyle: .alert)
@@ -120,6 +101,19 @@ class ViewController: UITableViewController {
                 self.tableView.reloadData()
             }
         }
+    }
+    
+    func updateSearchResults(for searchController: UISearchController) {
+        let searchBar = searchController.searchBar
+        filterContentForSearchText(searchBar.text!)
+    }
+    
+    func filterContentForSearchText(_ searchText: String) {
+        filterResults = petitions.filter { (petition) -> Bool in
+            return petition.title.lowercased().contains(searchText.lowercased()) || petition.body.lowercased().contains(searchText.lowercased())
+        }
+        
+        tableView.reloadData()
     }
 
 
