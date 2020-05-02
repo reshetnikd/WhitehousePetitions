@@ -19,6 +19,7 @@ class ViewController: UITableViewController, UISearchResultsUpdating {
         return searchController.searchBar.text?.isEmpty ?? true
     }
     let searchController = UISearchController(searchResultsController: nil)
+    var urlString: String?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -33,8 +34,6 @@ class ViewController: UITableViewController, UISearchResultsUpdating {
         navigationItem.searchController = searchController
         definesPresentationContext = true
         
-        let urlString: String
-        
         if navigationController?.tabBarItem.tag == 0 {
             urlString = "https://api.whitehouse.gov/v1/petitions.json?limit=100"
 //            urlString = "https://www.hackingwithswift.com/samples/petitions-1.json"
@@ -43,16 +42,10 @@ class ViewController: UITableViewController, UISearchResultsUpdating {
 //            urlString = "https://www.hackingwithswift.com/samples/petitions-2.json"
         }
         
-        DispatchQueue.global(qos: .userInitiated).async {
-            if let url = URL(string: urlString) {
-                if let data = try? Data(contentsOf: url) {
-                    self.parse(json: data)
-                    return
-                }
-            }
-
-            self.showError()
-        }
+        self.refreshControl = UIRefreshControl()
+        self.refreshControl?.addTarget(self, action: #selector(handleRefreshControl), for: .valueChanged)
+        
+        fetchData(from: urlString!)
     }
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -78,6 +71,16 @@ class ViewController: UITableViewController, UISearchResultsUpdating {
         navigationController?.pushViewController(vc, animated: true)
     }
     
+    @objc func handleRefreshControl() {
+        // Update your content…
+        fetchData(from: urlString!)
+
+        // Dismiss the refresh control.
+        DispatchQueue.main.async {
+           self.refreshControl?.endRefreshing()
+        }
+    }
+    
     @objc func showCredits() {
         let ac = UIAlertController(title: "Credits", message: "This data is privides from the We The People API of the Whitehouse", preferredStyle: .alert)
         ac.addAction(UIAlertAction(title: "OK", style: .default))
@@ -89,6 +92,19 @@ class ViewController: UITableViewController, UISearchResultsUpdating {
             let ac = UIAlertController(title: "Loading error", message: "There was a problem loading the feed; please check your connection and try again.", preferredStyle: .alert)
             ac.addAction(UIAlertAction(title: "OK", style: .default))
             self.present(ac, animated: true)
+        }
+    }
+    
+    func fetchData(from resource: String) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            if let url = URL(string: resource) {
+                if let data = try? Data(contentsOf: url) {
+                    self.parse(json: data)
+                    return
+                }
+            }
+
+            self.showError()
         }
     }
     
